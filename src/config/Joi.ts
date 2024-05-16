@@ -1,17 +1,27 @@
 import Joi, { SchemaMap } from "joi";
 
 // Define the shape of the schema object
-type UserSchema = {
+type RegistrationSchema = {
   name: string;
   email: string;
   password: string;
 };
 
+type LoginSchema = {
+  email: string;
+  password: string;
+};
+
 // Create the Joi validation schema
-const validationSchema: SchemaMap<UserSchema> = {
+const validationSchema: SchemaMap<RegistrationSchema> = {
   name: Joi.string().required(),
   email: Joi.string().email().required(),
   password: Joi.string().required().min(6).max(15),
 };
 
-export default validationSchema;
+const loginSchema: SchemaMap<LoginSchema> = {
+  email: Joi.string().email().required(),
+  password: Joi.string().required().min(6).max(15),
+};
+
+export { validationSchema, loginSchema };
