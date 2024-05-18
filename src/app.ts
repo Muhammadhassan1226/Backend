@@ -3,6 +3,7 @@ import globalErrorhandler from "./middleware/globalError";
 import UserRouter from "./user/userRouter";
 import { bookRouter } from "./Book/bookRouter";
 import { upload } from "./Book/bookMiddleware";
+import authenticate from "./middleware/authenticate";
 const app = express();
 
 app.use(express.json());
@@ -24,6 +25,7 @@ app.use("/api/user", UserRouter);
 
 app.use(
   "/api/book",
+  authenticate,
   upload.fields([
     { name: "coverImage", maxCount: 1 },
     { name: "file", maxCount: 1 },

@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import { Book } from "./bookTypes";
-import { timeStamp } from "console";
 
 const bookSchema = new mongoose.Schema<Book>(
   {
