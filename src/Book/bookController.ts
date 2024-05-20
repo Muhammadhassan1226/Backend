@@ -72,7 +72,9 @@ const CreateBook = async (req: Request, res: Response, next: NextFunction) => {
       genre,
       author: _req.userId,
       coverImage: Uploadresults.secure_url,
+      coverImageId: Uploadresults.public_id,
       file: Bookfileupload.secure_url,
+      fileId: Bookfileupload.public_id,
     });
 
     // @ts-ignore
@@ -126,6 +128,7 @@ const Updatebook = async (req: Request, res: Response, next: NextFunction) => {
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     let CoverImgName = "";
+    let CoverImageId = "";
     if (files.coverImage) {
       const filename = files.coverImage[0].filename;
       const converMimeType = files.coverImage[0].mimetype.split("/").at(-1);
@@ -140,12 +143,13 @@ const Updatebook = async (req: Request, res: Response, next: NextFunction) => {
       const updatedResult = await cloudinary.uploader.upload(filePath, {
         filename_override: CoverImgName,
         format: converMimeType,
-        folder: "books-cover",
+        folder: "books-pdfs",
       });
 
       // store secureurl in global variable
 
       CoverImgName = updatedResult.secure_url;
+      CoverImageId = updatedResult.public_id;
 
       // delete after updation
 
@@ -155,6 +159,7 @@ const Updatebook = async (req: Request, res: Response, next: NextFunction) => {
     // check if file is Present
 
     let Filename = "";
+    let FileId = "";
     const pdfName = files.file[0].filename;
     if (files.file) {
       const Bookfilepath = path.resolve(
@@ -173,6 +178,8 @@ const Updatebook = async (req: Request, res: Response, next: NextFunction) => {
       });
 
       Filename = (await UpdatedFile).secure_url;
+      FileId = (await UpdatedFile).public_id;
+
       await fs.promises.unlink(Bookfilepath);
     }
 
@@ -186,7 +193,9 @@ const Updatebook = async (req: Request, res: Response, next: NextFunction) => {
         title: title,
         genre: genre,
         coverImage: CoverImgName ? CoverImgName : book.coverImage,
+        coverImageId: CoverImageId ? CoverImageId : book.coverImageId,
         file: Filename ? Filename : book.file,
+        fileId: FileId ? FileId : book.fileId,
       },
       {
         new: true,
@@ -195,7 +204,21 @@ const Updatebook = async (req: Request, res: Response, next: NextFunction) => {
 
     console.log(updatedbook);
 
-    res.json(updatedbook);
+    await book.save();
+
+    if (CoverImageId !== book.coverImageId) {
+      await cloudinary.uploader.destroy(book.coverImageId);
+    }
+
+    if (FileId !== book.fileId) {
+      await cloudinary.uploader.destroy(book.fileId, {
+        resource_type: "raw",
+      });
+    }
+
+    const updatedBook = await bookModel.findById({ _id: BookId });
+
+    res.json(updatedBook);
   } catch (error: string | any) {
     const err = createHttpError(400, error.message);
     return next(err);
@@ -217,18 +240,73 @@ const GetSingleBook = async (
   res: Response,
   next: NextFunction
 ) => {
-  const bookId = req.params.bookId;
-
-  const book = await bookModel.findOne({ _id: bookId });
-  if (!book) {
-    return next(createHttpError(404, "book not found"));
-  }
-
-  return res.json(book);
   try {
+    const bookId = req.params.bookId;
+
+    const book = await bookModel.findOne({ _id: bookId });
+    if (!book) {
+      return next(createHttpError(404, "book not found"));
+    }
+    return res.json(book);
   } catch (error: string | any) {
     return next(createHttpError(500, error.message));
   }
 };
 
-export { CreateBook, Updatebook, GetBooks, GetSingleBook };
+const DeleteBook = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const bookId = req.params.bookId;
+
+    const book = await bookModel.findOne({ _id: bookId });
+
+    if (!book) {
+      return next(createHttpError(404, "Book not found"));
+    }
+
+    // check access
+
+    const _req = req as AuthRequest;
+
+    if (book.author.toString() !== _req.userId) {
+      return next(createHttpError(403, "You can't delete others Books"));
+    }
+
+    // Delete on cloudinary
+
+    // books-file/w1vcfkvwrpfa60qyypkj.pdf
+    //https://res.cloudinary.com/do0gesddm/raw/upload/v1715927147/books-file/w1vcfkvwrpfa60qyypkj.pdf
+
+    // Getting Images public iD
+    const coverImagesplit = book.coverImage.split("/");
+    const coverPublicId =
+      coverImagesplit.at(-2) + "/" + coverImagesplit.at(-1)?.split(".").at(-2);
+    console.log(coverPublicId);
+
+    // Getting files public iD
+
+    const filesSplit = book.file.split("/");
+    const FilePublicId = filesSplit.at(-2) + "/" + filesSplit.at(-1);
+
+    console.log(FilePublicId);
+
+    // delete from cloudinary
+    // image deletion
+    await cloudinary.uploader.destroy(coverPublicId);
+
+    // File deletion
+
+    await cloudinary.uploader.destroy(FilePublicId, {
+      resource_type: "raw",
+    });
+
+    // delete record from database
+
+    await bookModel.deleteOne({ _id: bookId });
+    res.json({ coverPublicId, FilePublicId }).status(204);
+  } catch (error: string | any) {
+    const err = createHttpError(404, error.message);
+    return next(err);
+  }
+};
+
+export { CreateBook, Updatebook, GetBooks, GetSingleBook, DeleteBook };

@@ -1,9 +1,19 @@
-import express, { Request, NextFunction, Response } from "express";
+import express from "express";
+import cors from "cors";
 import globalErrorhandler from "./middleware/globalError";
 import UserRouter from "./user/userRouter";
 import { bookRouter } from "./Book/bookRouter";
+import { config } from "./config/config";
 
 const app = express();
+
+// cors
+
+app.use(
+  cors({
+    origin: config.Frontend,
+  })
+);
 
 app.use(express.json());
 

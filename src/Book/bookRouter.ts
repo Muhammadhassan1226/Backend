@@ -4,6 +4,7 @@ import {
   Updatebook,
   GetBooks,
   GetSingleBook,
+  DeleteBook,
 } from "./bookController";
 const bookRouter = express.Router();
 import { upload } from "./bookMiddleware";
@@ -32,4 +33,6 @@ bookRouter.patch(
 bookRouter.get("/", GetBooks);
 
 bookRouter.get("/:bookId", GetSingleBook);
+
+bookRouter.delete("/:bookId", authenticate, DeleteBook);
 export { bookRouter };

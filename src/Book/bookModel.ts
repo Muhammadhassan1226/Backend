@@ -16,7 +16,15 @@ const bookSchema = new mongoose.Schema<Book>(
       type: String,
       required: true,
     },
+    coverImageId: {
+      type: String,
+      required: true,
+    },
     file: {
+      type: String,
+      required: true,
+    },
+    fileId: {
       type: String,
       required: true,
     },
